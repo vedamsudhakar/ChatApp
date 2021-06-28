@@ -1,0 +1,356 @@
+<html>
+    <head>
+        <title>Chat App!</title>
+        <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+        <style>
+            .logged-in {
+                color: green;
+            }
+
+            .logged-out {
+                color: red;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container" style="height: 510px;" id='loginWindow'>
+            <div class="row justify-content-around" style="background: rgb(217, 238, 238);">
+                <h3>Welcome to Chat App</h3>
+            </div> 
+            <div class="row justify-content-around" style="background: rgb(192, 186, 224);height: 510px;">
+              <div class="card" style="max-width: 30rem;height: 50%;">               
+                <div class="card-body">
+                  <h5 class="card-title">Login</h5>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="inputEmail4">User Name</label>
+                      <input type="email" class="form-control" id="userName" placeholder="User name">
+                    </div>   
+                    <div class="form-group">
+                        <label for="inputPassword4">Password</label>
+                        <input type="password" class="form-control" id="password" placeholder="Password">
+                    </div>
+                    <div class="col-md-12" style="margin-top: 5px;">
+                        <button type="button" class="btn btn-primary pull-left " id="login" >Login</button>
+                    </div>                                    
+                </div>  
+                </div>
+              </div>  
+            </div>
+        </div>
+        <div class="container" style="display: none;"  id="chatRoom">
+            <div class="row" style="background: rgb(217, 238, 238);">
+                <div class="col-sm-4">
+                   <h3>SHARSAH Chat App</h3>
+                </div>
+                <div class="col-sm-8" style="padding: 5px;">
+                    <button style="float:right;" style='float:right;margin:0px 5px;' class="btn btn-primary addUser" data-bs-toggle="modal" data-bs-target="#addUserModal" >Add User</button>
+                    <button style="float:right;margin:0px 5px" class="btn btn-primary" onclick="logOut()">Logout</button>
+                    <p style="float:right;margin-right: 10px;" id="loggedUserFiled">Hi</p>
+                    <span class="logged-in" style='float:right;margin:0px 5px;'>●</span>                    
+                </div>
+            </div> 
+            <div class="row" style="background: rgb(192, 186, 224);height: 510px;">
+                <div class="col-sm-3" style="max-height: 500px;overflow-y: auto;border:1px solid black;padding: 2px;background: white;" >
+                    <ul id="users" class="list-group"></ul>
+                </div>
+                <div class="col-sm-9" id="chatInfo" style="display: none;" >
+                   <div>
+                       <h3 id="selectedUser">UserName</h3>
+                       <hr>
+                   </div>
+                   <div style="height: 390px;border: 1px solid white;overflow-y: auto;" id="userMessages">
+                     <p><b>Sudhakar:</b>Hi, How are you</p>
+                   </div>
+                   <div class="row col-md-12" style="margin-top: 5px;">
+                        <div class="col-md-10">
+                            <input type="text" id="txtMessage" class="form-control"/>
+                        </div>
+                        <div class="col-md-2 pull-right">
+                            <button type="button" class="btn btn-primary pull-right " id="send" style="width: 100%;">Send</button>
+                        </div>
+                   </div>
+                </div>                
+            </div>             
+        </div>
+
+        <div class="modal fade" id="addUserModal" tabindex="-1" role="dialog" aria-labelledby="addUserModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="addUserModalLabel">Add User</h5>
+                  <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                  </button>
+                </div>
+                <div class="modal-body">
+                  <form>
+                    <div class="form-group">
+                      <label for="recipient-name" class="col-form-label">User Name:</label>
+                      <input type="text" class="form-control" id="userName2">
+                    </div>
+                    <div class="form-group">
+                        <label for="recipient-name" class="col-form-label">Password:</label>
+                        <input type="password" class="form-control" id="userPassword">
+                      </div>
+                    <div class="form-group">
+                        <label for="recipient-name" class="col-form-label">Role:</label>
+                        <select type="text" class="form-control" id="userRole">
+                            <option value="Admin">Admin</option>
+                            <option value="user" selected>User</option>
+                        </select>
+                    </div>
+                   
+                  </form>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                  <button type="button" class="btn btn-primary" onclick="addUser()" >Save</button>
+                </div>
+              </div>
+            </div>
+        </div>
+       
+        <script src="./node_modules/bootstrap/dist/js/bootstrap.min.js" ></script>
+        <script src="./node_modules/jquery/dist/jquery.min.js" ></script>
+        <script src="./node_modules/socket.io/client-dist/socket.io.js" ></script>
+
+        <script>
+            var loginUserName="";
+            var loggedInUserId="";
+            var selectedUserId="";
+            var selectedUser="";
+            var currentUserObject=undefined;
+            var socket =undefined;
+            $(function(){
+                socket = io();                
+                socket.on('notifyMessage', onMessageReceived)
+                socket.on('onUserLoggedIn',newUserLoggedIn);
+                socket.on('onUserLoggedOut',onUserLoggedout);
+                socket.on('activeUsers',updateUserStatus);
+                socket.on('usersListUpdated',userListUpdateRequired);
+                socket.on('forceLogout',forceLogout);
+
+                $("#send").click(()=>{
+                    if($('#txtMessage').val().length>0){
+                        sendMessage({ 
+                            sourceUserId: loggedInUserId,
+                            sourceUserName:loginUserName,
+                            targetUserId: selectedUserId,
+                            targetUserName: selectedUser,
+                            message: $('#txtMessage').val()
+                        });
+
+                        $('#userMessages').append(`<p style='margin-bottom: 0px;'><b>Me:</b>${$('#txtMessage').val()}</p>`);
+                        $('#txtMessage').val("");
+                    }
+                    else{
+                        alert('Please eneter valid message');
+                    }
+                });
+
+                $("#login").click(()=>{
+                    var obj={};
+                    obj.UserName=$('#userName').val();
+                    obj.Password=$('#password').val();
+                    verifyUserCredentials(obj);
+                });
+                
+                $('.deleteUserBtn').on('click', function(){
+                   event.preventDefault(); 
+                });
+            
+                if(sessionStorage.getItem('loggedInUserId')!=null){
+                        loginUserName=sessionStorage.getItem('loginUserName');
+                        $('#chatRoom').show();
+                        $('#loginWindow').hide(); 
+                        $('#loggedUserFiled').html(loginUserName);
+                        setSocketIdForUser();                    
+                        getUsers();                        
+                }
+
+                
+            });
+
+            function sendMessage(message){
+                $.post('http://localhost:3000/message', message);
+            }
+            function onMessageReceived(message){
+                console.log('message received from :'+message.sourceUserName);
+                if(selectedUser==message.sourceUserName){                   
+                    $('#userMessages').append(`<p style='margin-bottom: 0px;'><b>${message.sourceUserName}:</b>${message.message}</p>`)
+                }
+            }
+            function getUsers(){
+                $('#users').empty();
+                $.get('http://localhost:3000/users', function(data,textStatsus,jqXHR){
+                    data.forEach(element => {
+                        if(element.UserName!=loginUserName){
+                            if(element.status==1)
+                            {
+                                $('#users').append(`<li class='list-group-item user' style='cursor:pointer;' data-id='${element._id}'  onclick="selectUser(this,'${element.UserName}' )" >${element.UserName}
+                                    <button type="button" class="btn btn-small btn-primary deleteUserBtn" style="padding: 3px;float: right;" onclick="deleteUser('${element._id}','${element.UserName}')"> <span class="btn-label"><i class="fa fa-trash deleteUserBtn" aria-hidden="true"></i></span></button><span id='user_${element.UserName}_status' class="logged-in" style='float:right;margin:0px 5px;'>●</span></li>`);
+                            }
+                            else
+                            {
+                                $('#users').append(`<li class='list-group-item user' style='cursor:pointer;' data-id='${element._id}'  onclick="selectUser(this,'${element.UserName}' )" >${element.UserName}
+                                <button type="button" class="btn btn-small btn-primary deleteUserBtn" style="padding: 3px;float: right;" onclick="deleteUser('${element._id}','${element.UserName}')"> <span class="btn-label"><i class="fa fa-trash deleteUserBtn" aria-hidden="true"></i></span></button><span id='user_${element.UserName}_status' class="logged-out" style='float:right;margin:0px 5px;'>●</span></li>`);
+                            }
+                        }
+                        else{
+                            loggedInUserId=element._id;
+                            sessionStorage.setItem('loggedInUserId',loggedInUserId);
+                        }
+                    });
+
+                    displayUserSpecicActions();
+                });
+            }
+
+            function selectUser(element,selectedUserName){
+                $('.user').removeClass('active');
+                $(element).addClass('active');
+                $('#selectedUser').html(selectedUserName);
+                selectedUserId=$(element).data('id');
+                selectedUser=selectedUserName;
+                $('#chatInfo').show();
+                loadUserMessages(loggedInUserId,selectedUserId);
+            }
+
+            function loadUserMessages(loggedInUserId,selectedUserId)
+            {
+                $('#userMessages').empty();
+                $.post('http://localhost:3000/userMessages', {sourceUserId: loggedInUserId, targetUserId: selectedUserId},function(data){
+                    if(data.length>0){
+                       data.forEach(msg => {
+                           if(msg.from==loggedInUserId){
+                              $('#userMessages').append(`<p style='margin-bottom: 0px;'><b>Me:</b>${msg.message}</p>`)
+                           }
+                           else{
+                              $('#userMessages').append(`<p style='margin-bottom: 0px;'><b>${selectedUser}:</b>${msg.message}</p>`)
+                           }
+                       });
+                    }                   
+                });
+            }
+
+            function verifyUserCredentials(userCredentials){
+                userCredentials.socketId=socket.id;
+                $.post('http://localhost:3000/verifyCredentials', userCredentials,function(data){
+                    if(data.status==true){
+                        loginUserName=userCredentials.UserName;
+                        $('#chatRoom').show();
+                        $('#loginWindow').hide();
+                        sessionStorage.setItem('loginUserName',loginUserName);
+                        $('#loggedUserFiled').html(loginUserName);
+                        getUsers();
+                        currentUserObject=data.user;  
+                        sessionStorage.setItem('loggedInUserRole', data.user.Role);                  
+                    }
+                    else{
+                       alert(data.message);
+                    }
+                });
+            }
+
+            function setSocketIdForUser(){  
+                setTimeout(function(){             
+                    $.post('http://localhost:3000/setSocketId', {UserName:loginUserName, socketId: socket.id});
+                },2000);
+            }
+
+            function logOut(){
+                var obj={ UserName: loginUserName};
+                loginUserName="";
+                loggedInUserId="";
+                selectedUserId="";
+                selectedUser="";
+                $('#chatInfo').hide();
+                $('.user').removeClass('active');
+                $('#loginWindow').show();
+                $('#chatRoom').hide();
+                sessionStorage.removeItem('loggedInUserId');
+                sessionStorage.removeItem('loggedInUserRole');
+                $('#users').empty();
+               
+                $.post('http://localhost:3000/userLogout', obj);
+
+            }
+
+            function displayUserSpecicActions(){
+                if(sessionStorage.getItem('loggedInUserRole')!=null){
+                    if(sessionStorage.getItem('loggedInUserRole')=="Admin"){
+                        $('.deleteUserBtn').show();
+                        $('.addUser').show();
+                    }
+                    else{
+                       $('.deleteUserBtn').hide();
+                       $('.addUser').hide();
+                    }
+                }
+                else{
+                    $('.deleteUserBtn').hide();
+                    $('.addUser').hide();
+                }
+            }
+
+            function deleteUser(id, userName){
+                event.preventDefault();
+                console.log('delete user :'+id);
+                var obj={ userId: id, UserName: userName};
+                var r = confirm(`Do you want to delete user '${userName}'`);
+                if (r == true) {
+                    $.post('http://localhost:3000/deleteUser', obj, function(data){
+                        alert(data.message);
+                        getUsers();
+                    });
+                } 
+            }
+
+            function newUserLoggedIn(userName){
+                $(`#user_${userName}_status`).removeClass('logged-out');
+                $(`#user_${userName}_status`).addClass('logged-in');
+            }
+
+            function onUserLoggedout(userName){
+                $(`#user_${userName}_status`).removeClass('logged-in');
+                $(`#user_${userName}_status`).addClass('logged-out');
+            }
+
+            function updateUserStatus(activeUsers){
+                activeUsers.forEach(userName => {
+                    $(`#user_${userName}_status`).removeClass('logged-out');
+                    $(`#user_${userName}_status`).addClass('logged-in');
+                });
+            }
+
+            function addUser(){
+                var obj={};
+                obj.UserName=$('#userName2').val();
+                obj.Role=$('#userRole').val();
+                obj.Password=$('#userPassword').val();
+
+                $.post('http://localhost:3000/addUser', obj, function(data){
+                    if(data.status==true){
+                        getUsers();
+                        $('#addUserModal').modal('hide')
+                    }
+                    else{
+                        $('#addUserModal').modal('hide')
+                        alert(data.message);
+                    }
+                });
+
+            }
+
+            function userListUpdateRequired(){
+                getUsers();
+            }
+            function forceLogout(message){
+                console.log(message);
+                logOut();
+            }
+        </script>
+    </body>
+</html>
